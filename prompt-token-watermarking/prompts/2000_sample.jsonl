@@ -1273,7 +1273,7 @@
 {"prompt": "Can you write some python code to use the plaid api to download  all of my transactions as a csv"}
 {"prompt": "Write a section for an award application detailing how photography has insipired you"}
 {"prompt": "Create a checklist of what to consider when choosing a wallbed"}
-{"prompt": "jonahfroggatt@gmail.com\nwrite a python script which ingests 2 separate months P6 schedule (.XER format), and assesses how it has changed since the previous month. Track changes to the critical path, the amount of lag, and total float across different stages of the schedule"}
+{"prompt": "\nwrite a python script which ingests 2 separate months P6 schedule (.XER format), and assesses how it has changed since the previous month. Track changes to the critical path, the amount of lag, and total float across different stages of the schedule"}
 {"prompt": "Make a short story about guy named Vulky who has a very small sausage and and everyone laughed at him because of it. "}
 {"prompt": "Php code to populate array then serialize and save to disk "}
 {"prompt": "can you suggest me how to create a draggable react window using nextjs?"}
