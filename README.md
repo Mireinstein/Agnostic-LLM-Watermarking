@@ -1,91 +1,85 @@
-# Project Proposal: Prompt‑Based and Token‑Level Watermarking for LLM Output
+# Prompt-Based and Token-Level Watermarking for LLM Output
 
-**By: Aime Cesaire Mugishawayo, Miro Babin, and Admire Madyira**
+Aime Cesaire Mugishawayo, Miro Babin, Admire Madyira
 
----
+Two ways of marking LLM-generated text so it can be identified later, built and
+measured against each other on the same prompts.
 
-## 1. Overview and Approach
-Large language models (LLMs) are increasingly used to generate text at scale, raising concerns about provenance, plagiarism, and misinformation.
+**Approach A — prompt-level.** Lexical and stylistic constraints are injected
+into the prompt, so the model's own output carries a hidden pattern. The
+watermark lives in what the text says.
 
-**Watermarking** — embedding imperceptible, machine‑detectable signals into generated text — offers a pragmatic defense.
+**Approach B — token-level.** A greenlist of tokens is favoured during sampling
+via a logit bias, after [Kirchenbauer et al.
+(2023)](https://arxiv.org/abs/2301.10226). The watermark is a statistical skew
+in word choice rather than anything a reader would notice.
 
-This project explores two complementary directions:
+## Results
 
-- **Approach A: Prompt‑Based / Semantic Watermarking**  
-  Modify prompts with lightweight lexical or stylistic constraints so that generated sentences carry hidden patterns (e.g., repeated‑letter words, uncommon synonyms, fixed part‑of‑speech sequences).
+RoBERTa-base fine-tuned as a binary detector, against TF-IDF + logistic
+regression baselines. Test accuracy, held-out split:
 
-- **Approach B: Token‑Level Watermarking**  
-  Re‑implement a standard [greenlist watermark](https://arxiv.org/abs/2301.10226) (Kirchenbauer et al., 2023) on a local open‑source LLM to serve as a robustness baseline.
+| Detector | Prompt-level watermark | Token-level watermark |
+|---|---|---|
+| TF-IDF, word 1–2 gram | 59.4% | 28.9% |
+| TF-IDF, char 3–5 gram | 64.5% | — |
+| TF-IDF, BPE | 64.8% | — |
+| **RoBERTa-base** | **86.5%** | **65.6%** |
 
-Time permitting, an additional watermarking method may be explored.
+Prompt-level watermarks are far easier for a learned classifier to find. That
+is the expected direction rather than a surprise: a semantic watermark changes
+what the text says, which is what a text classifier is built to notice, while
+a greenlist watermark is a frequency skew over token choice — a z-test on
+greenlist rate detects it better than RoBERTa does. The 65.6% is therefore a
+statement about the detector, not about the watermark's strength.
 
----
+The word-level TF-IDF result on token watermarks (28.9%, below chance) reflects
+the same thing from the other side: bag-of-words features latch onto topic, and
+the greenlist skew is invisible to them.
 
-## 2. Related Literature
+## Corpus
 
-- [Kirchenbauer et al. (2023)](https://arxiv.org/abs/2301.10226): Introduce a simple token-level watermark using pseudorandom greenlists and one-sample z-tests for detection.
-- [DeepMind SynthID-Text (Lester et al., 2024)](https://arxiv.org/abs/2401.10350): Refine token-level watermarking via tournament sampling integrated with speculative decoding, improving efficiency and detection accuracy.
-- [Zhong et al. (2024)](https://arxiv.org/abs/2411.05091): Demonstrate that purely prompt-based signals generated and detected by separate LMs can reliably watermark text.
+2,000 prompts drawn from OpenAI Evals and the WikiText-103 validation set, with
+three generations each, all from `gpt-3.5-turbo`:
 
-Potential additional references:
+| Condition | Responses | How |
+|---|---|---|
+| Control | 2,000 | Unmodified prompt |
+| Prompt-watermarked | 1,913 | Rules injected via `PromptWrapper` |
+| Token-watermarked | 1,999 | Static greenlist through the OpenAI `logit_bias` parameter |
 
-- [Ren et al. (2023)](https://arxiv.org/abs/2309.03157): A robust semantics-based watermark against paraphrasing.
-- [Wang et al. (2024)](https://arxiv.org/abs/2404.02138): Topic-based watermarks for LLMs.
+Both watermarked conditions use `gpt-3.5-turbo`. The original plan called for
+a local Llama-2-7B for Approach B; the greenlist is applied through the API's
+logit bias instead, which constrains it to a small fixed token set rather than
+the keyed pseudorandom partition in the paper.
 
----
+## Layout
 
-## 3. Implementation & Evaluation Plan
+    prompts/                  prompt curation and sampling
+    prompt_level/             Approach A: rule injection and detection
+    token_level/              Approach B: greenlist generation
+    vanilla_responses_gpt3.5turbo/   control corpus
+    watermarked_responses/    both watermarked corpora
+    classification/           detector training and evaluation notebooks
 
-### Dataset
-Curate ~1,000 short prompts from OpenAI Evals and WikiText‑103 validation set.
+## Running it
 
-For each prompt, generate:
-- Unmarked (control) text
-- Prompt‑watermarked text (Approach A via GPT-3.5-Turbo)
-- Token‑watermarked text (Approach B via Llama‑2‑7B‑Chat)
+    pip install -r requirements.txt
+    export OPENAI_API_KEY=...
 
-### Embedding the Watermarks
-- **Approach A**: Insert random lexical rules (e.g., one double-letter word per sentence) into prompts.
-- **Approach B**: Apply a +2.0 logit bias to greenlist tokens partitioned by a 128-bit secret key during nucleus sampling.
+    python prompts/take_2000.py
+    python vanilla_responses_gpt3.5turbo/generate_responses.py
+    python prompt_level/generate_prompt_watermark.py
+    python token_level/generate_watermarked.py
 
-### Detection
-- For prompt-based outputs: train a lightweight BERTa classifier.
-- Also test a zero-shot detection prompt inspired by Zhong et al.
+Then open the notebooks in `classification/` to train and evaluate the
+detectors. The generated corpora are committed, so the notebooks run without
+regenerating anything.
 
----
+## References
 
-## 4. Timeline
-
-| Week | Task |
-|:---|:---|
-| 1 | Finalize dataset and reproduce greenlist watermark |
-| 2 | Implement prompt wrapper and automated detector |
-| 3 | Conduct robustness and ablation experiments |
-| 4 | Perform analysis, write-up, and possibly implement a third approach |
-
----
-
-## 5. Deliverables
-- Codebase
-- Generated corpora
-- Detection scripts
-- Final comparative analysis report
-
----
-
-## 6. Contact
-
-- Aime Cesaire Mugishawayo ([cmugishawayo25@amherst.edu](mailto:cmugishawayo25@amherst.edu))
-- Miro Babin ([cbabin25@amherst.edu](mailto:cbabin25@amherst.edu))
-- Admire Madyira ([amadyira25@amherst.edu](mailto:amadyira25@amherst.edu))
-
----
-
-## 📚 References
 1. [A Watermark for Large Language Models — Kirchenbauer et al. (2023)](https://arxiv.org/abs/2301.10226)
 2. [Scalable Watermarking for Identifying Large Language Model Outputs — Lester et al. (2024)](https://pmc.ncbi.nlm.nih.gov/articles/PMC11499265/)
 3. [Watermarking Language Models through Language Models — Zhong et al. (2024)](https://arxiv.org/abs/2411.05091)
 4. [A Robust Semantics-Based Watermark for LLMs Against Paraphrasing — Ren et al. (2023)](https://arxiv.org/abs/2311.08721)
 5. [Topic-Based Watermarks for Large Language Models — Wang et al. (2024)](https://arxiv.org/abs/2404.02138)
-
----

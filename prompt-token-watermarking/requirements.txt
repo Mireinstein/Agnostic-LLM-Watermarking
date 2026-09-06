@@ -1,0 +1,15 @@
+# Generation
+openai
+tiktoken
+python-dotenv
+ijson
+tqdm
+
+# Detection
+torch
+transformers
+datasets
+evaluate
+tokenizers
+scikit-learn
+numpy
